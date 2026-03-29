@@ -45,21 +45,22 @@ class OrderBookMonitor:
         for i, code in enumerate(self.code_list):
             ws[ f"A{ i + 2 }" ].value = str(code)
 
-
         wb.save(self.excel_path)
 
-    def get_path_to_xl2(self) -> Path:
-        try:
-            subprocess_rtn = subprocess.run(["assoc",".xlsx"], shell=True, stdout=subprocess.PIPE, stderr=subproess.PIPE)
-            assoc_to = re.search(r"Excel\.Sheet\.\d+", subprocess_rtn.stdout.deode("utf-8")).group()
 
-            subprocess_rtn = subprocess.run(["ftype", assoc_to], shell=True, stdout=subprocess.PIPE, stderr=Subprocess.PIPE)
-            xl_path = re.search(r"C:.*EXCEL\.EXE", subprocess_rtn.stdut.decode("uyf-8")).group
+
+    def get_path_to_xl(self) -> Path:
+        try:
+            subprocess_rtn = subprocess.run("assoc .xlsx", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            assoc_to = re.search(r"Excel\.Sheet\.\d+", subprocess_rtn.stdout.decode("utf-8")).group()
+
+            subprocess_rtn = subprocess.run(f"ftype {assoc_to}", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            xl_path = re.search(r"C:.*EXCEL\.EXE", subprocess_rtn.stdout.decode("utf-8")).group()
 
             print("Excelのパス:", xl_path) # デバック用出力
             return Path(xl_path)
 
-        except (AttributeError, subprocess.CalledProcessError) as e:
+        except AttributeError as e:
             raise FileNotFoundError("Excelのパスが取得できませんでした。Excelがインストールされているか確認してください。") from e
 
 
