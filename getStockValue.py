@@ -2,8 +2,10 @@ import time
 import os
 import xlwings as xw
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 import subprocess
+import hashlib
+import json
 import re
 import openpyxl as pyxl
 from multiprocessing import Process
@@ -55,7 +57,7 @@ class OrderBookMonitor:
 
         # 銘柄コードの設定
         for i, code in enumerate(self.code_list):
-            ws[ f"A{ i + 2 }" ].value = str(code)
+            ws[ f"A{ i + 2 }" ].value = str(code) 
 
         wb.save(self.excel_path)
 
@@ -115,25 +117,50 @@ class OrderBookMonitor:
 ###        print(f"監視する銘柄コード: {self.code_list}")
         print("Excelシートの初期化が完了しました。")
 
+    def get_current_timestamp(self):
+        jst = timezone(timedelta(hours=9))
+        return datetime.now(jst).strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]
+
+    def calculate_hash(self,data):
+        data_without_timestamp = {k:v for k, v in data.items() if k != "timestamp"}
+        data_string = json.dumps(data_without_timestamp, sort_keys=True).encode("utf-8")
+        return hashlib.md5(data_string).hexdigest()
+
+    def watch_loop(self):
+        
+        ws = xw.sheets[0]
+        time.sleep(5)
+        print("監視員、着任いたしました！監視を開始します！！")
+        while True:
+
+            current_data = {"stock_code": ws.range("A2").value, "price": ws.range("F2").value}
+            current_hash = self.calculate_hash(current_data)
+
+            if self.previous_hashes != current_hash:
+
+                print("現在値:", current_data["price"])
+
+                self.previous_hashes = current_hash
+
+                time.sleep(1)
+
 
     def monitor(self):
         try:
             self.create_excel()
             self.initialize_excel()
-#            self.start_data_reader()
+            self.watch_loop()
         except KeyboardInterrupt:
             print("停止処理を開始しています...")
             self.stop_flag = True # 停止フラグを設定してループを終了させる
         finally:
-            # 全てのリソースを解放する
-#            self.stop_data_reader()
 
             print("監視を停止しました。")
 
 
 
 if __name__ == "__main__":
-    EXCEL_PATH = os.getenv("EXCEL_PATH") 
+    EXCEL_PATH = os.getenv("TEST_EXCEL_PATH") 
     INIT_CODE = ["USD/JPY", "EUR/JPY", "GBP/JPY", "AUD/JPY", "NZD/JPY", "ZAR/JPY", "CAD/JPY", "CHF/JPY", "N225","N225.FUT01.OS" ]
     #INIT_CODE = get_watchlist_codes()
     JSON_BASE_PATH = os.getenv("JSON_BASE_PATH")
